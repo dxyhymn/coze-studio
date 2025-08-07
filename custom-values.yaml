@@ -1,0 +1,187 @@
+# 定制的 values.yaml 配置文件 - 连接公司现有中间件
+# 适用于部署到公司 Kuboard 环境
+
+# 禁用所有内置中间件服务（使用公司现有服务）
+mysql:
+  enabled: false
+
+redis:
+  enabled: false
+
+rocketmq:
+  enabled: false
+
+elasticsearch:
+  enabled: false
+
+minio:
+  enabled: false
+
+etcd:
+  enabled: false
+
+milvus:
+  enabled: false
+
+# coze-server 主要配置
+cozeServer:
+  enabled: true
+  replicaCount: 1  # 根据需要调整副本数
+
+  image:
+    repository: opencoze/opencoze
+    pullPolicy: Always
+    tag: 'latest'
+
+  service:
+    type: ClusterIP  # 改为 ClusterIP，通过 Ingress 暴露
+    ports:
+      - name: http
+        port: 8888
+        targetPort: 8888
+      - name: minio-proxy
+        port: 8889
+        targetPort: 8889
+
+  # 关键：配置连接外部中间件的环境变量
+  env:
+    # 基础服务配置
+    LISTEN_ADDR: ":8888"
+    SERVER_HOST: "localhost${LISTEN_ADDR}"
+    LOG_LEVEL: "info"  # 生产环境建议使用 info
+    MAX_REQUEST_BODY_SIZE: "1073741824"
+    
+    # 存储配置
+    STORAGE_TYPE: "minio"
+    MINIO_PROXY_ENDPOINT: ":8889"
+    
+    # 消息队列配置 - 根据公司实际 MQ 类型调整
+    COZE_MQ_TYPE: rmq  # 如果使用 RocketMQ
+    
+    # Elasticsearch 配置
+    ES_VERSION: "v8"
+    
+    # 向量数据库配置
+    VECTOR_STORE_TYPE: "milvus"
+    
+    # 嵌入模型配置 - 根据公司实际情况调整
+    EMBEDDING_TYPE: "ark"  # 或 "openai"
+    ARK_EMBEDDING_MODEL: ""
+    ARK_EMBEDDING_DIMS: "1024"
+    ARK_EMBEDDING_BASE_URL: "https://ark.cn-beijing.volces.com/api/v3"
+    
+    # OpenAI 嵌入配置（如果使用）
+    OPENAI_EMBEDDING_BASE_URL: "https://api.openai.com/v1/embeddings"
+    OPENAI_EMBEDDING_MODEL: "text-embedding-3-large"
+    OPENAI_EMBEDDING_API_KEY: "your_api_key"
+    OPENAI_EMBEDDING_BY_AZURE: "false"
+    OPENAI_EMBEDDING_DIMS: "1024"
+    
+    # 文件上传配置
+    FILE_UPLOAD_COMPONENT_TYPE: "storage"
+    
+    # OCR 配置
+    OCR_TYPE: "ve"
+    VE_OCR_AK: ""
+    VE_OCR_SK: ""
+    
+    # 内置聊天模型配置
+    BUILTIN_CM_TYPE: "ark"  # 或 "openai"
+    BUILTIN_CM_ARK_API_KEY: ""
+    BUILTIN_CM_ARK_MODEL: ""
+    BUILTIN_CM_ARK_BASE_URL: ""
+    BUILTIN_CM_OPENAI_BASE_URL: "https://api.openai.com/v1/chat/completions"
+    BUILTIN_CM_OPENAI_API_KEY: "your_api_key"
+    BUILTIN_CM_OPENAI_BY_AZURE: "false"
+    BUILTIN_CM_OPENAI_MODEL: "gpt-4o-2024-05-13"
+    
+    # 图像服务配置
+    VE_IMAGEX_AK: ""
+    VE_IMAGEX_SK: ""
+    VE_IMAGEX_SERVER_ID: ""
+    VE_IMAGEX_DOMAIN: ""
+    VE_IMAGEX_TEMPLATE: ""
+    VE_IMAGEX_UPLOAD_HOST: "https://imagex.volcengineapi.com"
+    
+    # ===== 连接外部中间件的配置 =====
+    # MySQL 配置 - 替换为公司 MySQL 地址
+    MYSQL_HOST: "your-mysql-host.company.com"
+    MYSQL_PORT: "3306"
+    MYSQL_USER: "coze_user"
+    MYSQL_PASSWORD: "your_mysql_password"
+    MYSQL_DATABASE: "opencoze"
+    MYSQL_DSN: "coze_user:your_mysql_password@tcp(your-mysql-host.company.com:3306)/opencoze?charset=utf8mb4&parseTime=True&loc=Local"
+    
+    # Redis 配置 - 替换为公司 Redis 地址
+    REDIS_ADDR: "your-redis-host.company.com:6379"
+    # 如果 Redis 有密码，添加：
+    # REDIS_PASSWORD: "your_redis_password"
+    
+    # Elasticsearch 配置 - 替换为公司 ES 地址
+    ES_ADDR: "http://your-elasticsearch-host.company.com:9200"
+    ES_USERNAME: "your_es_username"  # 如果有认证
+    ES_PASSWORD: "your_es_password"  # 如果有认证
+    
+    # MinIO 配置 - 替换为公司 MinIO 地址
+    MINIO_AK: "your_minio_access_key"
+    MINIO_SK: "your_minio_secret_key"
+    STORAGE_BUCKET: "opencoze"
+    MINIO_ENDPOINT: "your-minio-host.company.com:9000"
+    MINIO_API_HOST: "http://your-minio-host.company.com:9000"
+    
+    # Milvus 配置 - 替换为公司 Milvus 地址
+    MILVUS_ADDR: "your-milvus-host.company.com:19530"
+    
+    # RocketMQ 配置 - 替换为公司 RocketMQ 地址
+    MQ_NAME_SERVER: "http://your-rocketmq-host.company.com:9876"
+
+# Ingress 配置 - 根据公司 Kuboard 环境调整
+ingress:
+  enabled: true
+  className: 'nginx'  # 或公司使用的 Ingress Controller
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "1024m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+  hosts:
+    - host: coze.your-company.com  # 替换为实际域名
+      paths:
+        - path: /
+          pathType: Prefix
+  # 如果需要 HTTPS，配置 TLS
+  # tls:
+  #   - secretName: coze-tls
+  #     hosts:
+  #       - coze.your-company.com
+
+# 资源限制配置
+resources:
+  limits:
+    cpu: 4000m
+    memory: 8Gi
+  requests:
+    cpu: 2000m
+    memory: 4Gi
+
+# 健康检查配置
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8888
+  initialDelaySeconds: 60
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8888
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+# 如果需要持久化存储配置
+persistence:
+  enabled: false  # 使用外部 MinIO，不需要本地存储
+
+# 镜像拉取密钥（如果镜像在私有仓库）
+# imagePullSecrets:
+#   - name: regcred

@@ -1,0 +1,195 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rocketmq-namesrv
+  namespace: default
+  labels:
+    app: rocketmq
+    component: namesrv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rocketmq
+      component: namesrv
+  template:
+    metadata:
+      labels:
+        app: rocketmq
+        component: namesrv
+    spec:
+      containers:
+        - name: namesrv
+          image: apache/rocketmq:5.3.2
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "mqnamesrv"]
+          ports:
+            - name: main
+              containerPort: 9876
+              protocol: TCP
+          env:
+            - name: JAVA_OPT_EXT
+              value: "-Duser.home=/home/rocketmq -Xms512m -Xmx512m -Xmn256m"
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+            requests:
+              cpu: 1000m
+              memory: 2Gi
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "mqadmin clusterList -n localhost:9876"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 9876
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      restartPolicy: Always
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rocketmq-broker
+  namespace: default
+  labels:
+    app: rocketmq
+    component: broker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rocketmq
+      component: broker
+  template:
+    metadata:
+      labels:
+        app: rocketmq
+        component: broker
+    spec:
+      initContainers:
+        - name: wait-for-namesrv
+          image: busybox:latest
+          command: ['sh', '-c', 'until nc -z rocketmq-namesrv 9876; do echo waiting for namesrv; sleep 2; done']
+      containers:
+        - name: broker
+          image: apache/rocketmq:5.3.2
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -ex
+              mkdir -p /home/rocketmq/logs/rocketmqlogs /home/rocketmq/store
+              touch /home/rocketmq/logs/rocketmqlogs/tools.log \
+                    /home/rocketmq/logs/rocketmqlogs/tools_default.log
+              chown -R rocketmq:rocketmq /home/rocketmq/logs /home/rocketmq/store
+              chmod g+s /home/rocketmq/logs /home/rocketmq/store
+
+              echo "Starting RocketMQ Broker..."
+              /home/rocketmq/rocketmq-5.3.2/bin/mqbroker -c /tmp/broker.conf &
+              broker_ready=false
+              for i in {1..60}; do
+                if /home/rocketmq/rocketmq-5.3.2/bin/mqadmin clusterList -n $NAMESRV_ADDR | grep -q "DefaultCluster.*broker-a"; then
+                  echo "Broker registered with NameServer."
+                  broker_ready=true
+                  break
+                fi
+                echo "Broker not ready, retry $i/60..."
+                sleep 1
+              done
+              if [ "$broker_ready" = false ]; then
+                echo "ERROR: Broker registration timed out."
+                exit 1
+              fi
+
+              touch /tmp/rocketmq_ready
+              echo "Broker started successfully."
+
+              echo "Creating topics for OpenCoze..."
+              /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateTopic -n $NAMESRV_ADDR -c DefaultCluster -t "opencoze_knowledge"
+              /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateTopic -n $NAMESRV_ADDR -c DefaultCluster -t "opencoze_search_app"
+              /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateTopic -n $NAMESRV_ADDR -c DefaultCluster -t "opencoze_search_resource"
+              /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateTopic -n $NAMESRV_ADDR -c DefaultCluster -t "%RETRY%cg_knowledge"
+              /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateTopic -n $NAMESRV_ADDR -c DefaultCluster -t "%RETRY%cg_search_app"
+              /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateTopic -n $NAMESRV_ADDR -c DefaultCluster -t "%RETRY%cg_search_resource"
+
+              echo "Creating consumer groups for OpenCoze..."
+              /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateSubGroup -n $NAMESRV_ADDR -c DefaultCluster -g "cg_knowledge"
+              /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateSubGroup -n $NAMESRV_ADDR -c DefaultCluster -g "cg_search_app"
+              /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateSubGroup -n $NAMESRV_ADDR -c DefaultCluster -g "cg_search_resource"
+
+              echo "Topics and consumer groups created successfully."
+              wait
+          ports:
+            - name: main
+              containerPort: 10911
+              protocol: TCP
+            - name: ha
+              containerPort: 10912
+              protocol: TCP
+            - name: vip
+              containerPort: 10909
+              protocol: TCP
+          env:
+            - name: JAVA_OPT_EXT
+              value: "-Duser.home=/home/rocketmq -Xms2g -Xmx2g -Xmn1g"
+            - name: NAMESRV_ADDR
+              value: "rocketmq-namesrv:9876"
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 8Gi
+            requests:
+              cpu: 2000m
+              memory: 4Gi
+          livenessProbe:
+            tcpSocket:
+              port: 10911
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "[ -f /tmp/rocketmq_ready ]"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: broker-config
+              mountPath: /tmp/broker.conf
+              subPath: broker.conf
+      volumes:
+        - name: broker-config
+          configMap:
+            name: rocketmq-broker-config
+            items:
+              - key: broker.conf
+                path: broker.conf
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rocketmq-broker-config
+  namespace: default
+  labels:
+    app: rocketmq
+    component: broker
+data:
+  broker.conf: |
+    brokerClusterName = DefaultCluster
+    brokerName = broker-a
+    brokerId = 0
+    deleteWhen = 04
+    fileReservedTime = 48
+    brokerRole = ASYNC_MASTER
+    flushDiskType = ASYNC_FLUSH
+    namesrvAddr = rocketmq-namesrv:9876
+    listenPort = 10911
+    brokerIP1 = 0.0.0.0

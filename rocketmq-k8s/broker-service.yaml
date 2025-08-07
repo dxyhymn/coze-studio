@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rocketmq-broker
+  namespace: rocketmq
+  labels:
+    app: rocketmq
+    component: broker
+spec:
+  type: ClusterIP
+  ports:
+    - name: main
+      port: 10911
+      targetPort: 10911
+      protocol: TCP
+    - name: ha
+      port: 10912
+      targetPort: 10912
+      protocol: TCP
+    - name: vip
+      port: 10909
+      targetPort: 10909
+      protocol: TCP
+  selector:
+    app: rocketmq
+    component: broker

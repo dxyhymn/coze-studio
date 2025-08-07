@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: opencoze-server
+  namespace: default
+  labels:
+    app: opencoze
+    component: server
+spec:
+  type: NodePort  # 使用 NodePort 方便在 Kuboard 中访问
+  ports:
+    - name: http
+      port: 8888
+      targetPort: 8888
+      nodePort: 30888  # 可以通过节点IP:30888访问
+      protocol: TCP
+    - name: minio-proxy
+      port: 8889
+      targetPort: 8889
+      nodePort: 30889  # 可以通过节点IP:30889访问
+      protocol: TCP
+  selector:
+    app: opencoze
+    component: server

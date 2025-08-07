@@ -1,0 +1,343 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencoze-server
+  namespace: opencoze
+  labels:
+    app: opencoze
+    component: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opencoze
+      component: server
+  template:
+    metadata:
+      labels:
+        app: opencoze
+        component: server
+    spec:
+      containers:
+        - name: opencoze-server
+          image: opencoze/opencoze:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8888
+              protocol: TCP
+            - name: minio-proxy
+              containerPort: 8889
+              protocol: TCP
+          
+          # 环境变量配置
+          env:
+            # 从 ConfigMap 读取配置
+            - name: LISTEN_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: LISTEN_ADDR
+            - name: SERVER_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: SERVER_HOST
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: LOG_LEVEL
+            - name: MAX_REQUEST_BODY_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MAX_REQUEST_BODY_SIZE
+            - name: STORAGE_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: STORAGE_TYPE
+            - name: MINIO_PROXY_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MINIO_PROXY_ENDPOINT
+            - name: STORAGE_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: STORAGE_BUCKET
+            - name: COZE_MQ_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: COZE_MQ_TYPE
+            - name: ES_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: ES_VERSION
+            - name: VECTOR_STORE_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: VECTOR_STORE_TYPE
+            - name: EMBEDDING_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: EMBEDDING_TYPE
+            - name: ARK_EMBEDDING_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: ARK_EMBEDDING_MODEL
+            - name: ARK_EMBEDDING_DIMS
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: ARK_EMBEDDING_DIMS
+            - name: ARK_EMBEDDING_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: ARK_EMBEDDING_BASE_URL
+            - name: FILE_UPLOAD_COMPONENT_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: FILE_UPLOAD_COMPONENT_TYPE
+            - name: OPENAI_EMBEDDING_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: OPENAI_EMBEDDING_BASE_URL
+            - name: OPENAI_EMBEDDING_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: OPENAI_EMBEDDING_MODEL
+            - name: OPENAI_EMBEDDING_BY_AZURE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: OPENAI_EMBEDDING_BY_AZURE
+            - name: OPENAI_EMBEDDING_DIMS
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: OPENAI_EMBEDDING_DIMS
+            - name: OCR_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: OCR_TYPE
+            - name: BUILTIN_CM_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: BUILTIN_CM_TYPE
+            - name: BUILTIN_CM_ARK_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: BUILTIN_CM_ARK_MODEL
+            - name: BUILTIN_CM_ARK_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: BUILTIN_CM_ARK_BASE_URL
+            - name: BUILTIN_CM_OPENAI_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: BUILTIN_CM_OPENAI_BASE_URL
+            - name: BUILTIN_CM_OPENAI_BY_AZURE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: BUILTIN_CM_OPENAI_BY_AZURE
+            - name: BUILTIN_CM_OPENAI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: BUILTIN_CM_OPENAI_MODEL
+            - name: VE_IMAGEX_SERVER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: VE_IMAGEX_SERVER_ID
+            - name: VE_IMAGEX_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: VE_IMAGEX_DOMAIN
+            - name: VE_IMAGEX_TEMPLATE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: VE_IMAGEX_TEMPLATE
+            - name: VE_IMAGEX_UPLOAD_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: VE_IMAGEX_UPLOAD_HOST
+            
+            # 外部中间件连接配置
+            - name: MYSQL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MYSQL_HOST
+            - name: MYSQL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MYSQL_PORT
+            - name: MYSQL_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MYSQL_USER
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MYSQL_DATABASE
+            - name: REDIS_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: REDIS_ADDR
+            - name: ES_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: ES_ADDR
+            - name: MINIO_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MINIO_ENDPOINT
+            - name: MINIO_API_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MINIO_API_HOST
+            - name: MILVUS_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MILVUS_ADDR
+            - name: MQ_NAME_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: opencoze-config
+                  key: MQ_NAME_SERVER
+            
+            # 从 Secret 读取敏感信息
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: mysql-password
+            - name: MYSQL_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: mysql-dsn
+            - name: ES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: es-username
+            - name: ES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: es-password
+            - name: MINIO_AK
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: minio-access-key
+            - name: MINIO_SK
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: minio-secret-key
+            - name: ARK_EMBEDDING_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: ark-embedding-api-key
+            - name: BUILTIN_CM_ARK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: ark-chat-api-key
+            - name: OPENAI_EMBEDDING_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: openai-embedding-api-key
+            - name: BUILTIN_CM_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: openai-chat-api-key
+            - name: VE_OCR_AK
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: ve-ocr-ak
+            - name: VE_OCR_SK
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: ve-ocr-sk
+            - name: VE_IMAGEX_AK
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: ve-imagex-ak
+            - name: VE_IMAGEX_SK
+              valueFrom:
+                secretKeyRef:
+                  name: opencoze-secrets
+                  key: ve-imagex-sk
+          
+          # 资源限制
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 8Gi
+            requests:
+              cpu: 2000m
+              memory: 4Gi
+          
+          # 健康检查
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8888
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8888
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      
+      # 镜像拉取策略
+      # imagePullSecrets:
+      #   - name: regcred
+      
+      restartPolicy: Always

@@ -1,0 +1,188 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencoze-server
+  namespace: default
+  labels:
+    app: opencoze
+    component: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opencoze
+      component: server
+  template:
+    metadata:
+      labels:
+        app: opencoze
+        component: server
+    spec:
+      containers:
+        - name: opencoze-server
+          image: opencoze/opencoze:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8888
+              protocol: TCP
+            - name: minio-proxy
+              containerPort: 8889
+              protocol: TCP
+          
+          # 直接在 deployment 中配置环境变量
+          env:
+            # 基础服务配置
+            - name: LISTEN_ADDR
+              value: ":8888"
+            - name: SERVER_HOST
+              value: "localhost:8888"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: MAX_REQUEST_BODY_SIZE
+              value: "1073741824"
+            
+            # 存储配置
+            - name: STORAGE_TYPE
+              value: "minio"
+            - name: MINIO_PROXY_ENDPOINT
+              value: ":8889"
+            - name: STORAGE_BUCKET
+              value: "opencoze"
+            
+            # 消息队列配置
+            - name: COZE_MQ_TYPE
+              value: "rmq"
+            
+            # Elasticsearch 配置
+            - name: ES_VERSION
+              value: "v8"
+            
+            # 向量数据库配置
+            - name: VECTOR_STORE_TYPE
+              value: "milvus"
+            
+            # 嵌入模型配置 - 使用 OpenAI
+            - name: EMBEDDING_TYPE
+              value: "openai"
+            
+            # OpenAI 嵌入配置
+            - name: OPENAI_EMBEDDING_BASE_URL
+              value: "https://api.openai.com/v1/embeddings"
+            - name: OPENAI_EMBEDDING_MODEL
+              value: "text-embedding-3-large"
+            - name: OPENAI_EMBEDDING_API_KEY
+              value: "your_openai_api_key"  # 请填入您的 OpenAI API Key（必填）
+            - name: OPENAI_EMBEDDING_BY_AZURE
+              value: "false"
+            - name: OPENAI_EMBEDDING_DIMS
+              value: "1024"
+            
+            # 文件上传配置
+            - name: FILE_UPLOAD_COMPONENT_TYPE
+              value: "storage"
+            
+            # OCR 配置
+            - name: OCR_TYPE
+              value: "ve"
+            - name: VE_OCR_AK
+              value: ""  # 填入火山引擎 OCR AK
+            - name: VE_OCR_SK
+              value: ""  # 填入火山引擎 OCR SK
+            
+            # 注意：聊天模型应该通过挂载 conf/model 目录下的 YAML 文件配置
+            # 而不是通过环境变量配置，这里保留是为了某些特殊场景的兼容性
+            
+            # 图像服务配置
+            - name: VE_IMAGEX_AK
+              value: ""  # 填入火山引擎 ImageX AK
+            - name: VE_IMAGEX_SK
+              value: ""  # 填入火山引擎 ImageX SK
+            - name: VE_IMAGEX_SERVER_ID
+              value: ""
+            - name: VE_IMAGEX_DOMAIN
+              value: ""
+            - name: VE_IMAGEX_TEMPLATE
+              value: ""
+            - name: VE_IMAGEX_UPLOAD_HOST
+              value: "https://imagex.volcengineapi.com"
+            
+            # ===== 外部中间件连接配置（重要：请修改为您公司的实际地址） =====
+            # MySQL 配置opencoze-model-config
+            - name: MYSQL_HOST
+              value: "your-mysql-host.company.com"  # 替换为实际 MySQL 地址
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              value: "coze_user"  # 替换为实际用户名
+            - name: MYSQL_PASSWORD
+              value: "your_mysql_password"  # 替换为实际密码
+            - name: MYSQL_DATABASE
+              value: "opencoze"
+            - name: MYSQL_DSN
+              value: "coze_user:your_mysql_password@tcp(your-mysql-host.company.com:3306)/opencoze?charset=utf8mb4&parseTime=True&loc=Local"  # 替换为实际连接字符串
+            
+            # Redis 配置
+            - name: REDIS_ADDR
+              value: "your-redis-host.company.com:6379"  # 替换为实际 Redis 地址
+            # 如果 Redis 有密码，添加下面一行：
+            # - name: REDIS_PASSWORD
+            #   value: "your_redis_password"
+            
+            # Elasticsearch 配置
+            - name: ES_ADDR
+              value: "http://your-elasticsearch-host.company.com:9200"  # 替换为实际 ES 地址
+            - name: ES_USERNAME
+              value: "your_es_username"  # 如果有认证，填入用户名
+            - name: ES_PASSWORD
+              value: "your_es_password"  # 如果有认证，填入密码
+            
+            # MinIO 配置
+            - name: MINIO_AK
+              value: "your_minio_access_key"  # 替换为实际 MinIO Access Key
+            - name: MINIO_SK
+              value: "your_minio_secret_key"  # 替换为实际 MinIO Secret Key
+            - name: MINIO_ENDPOINT
+              value: "your-minio-host.company.com:9000"  # 替换为实际 MinIO 地址
+            - name: MINIO_API_HOST
+              value: "http://your-minio-host.company.com:9000"  # 替换为实际 MinIO API 地址
+            
+            # Milvus 配置
+            - name: MILVUS_ADDR
+              value: "your-milvus-host.company.com:19530"  # 替换为实际 Milvus 地址
+            
+            # RocketMQ 配置
+            - name: MQ_NAME_SERVER
+              value: "http://your-rocketmq-host.company.com:9876"  # 替换为实际 RocketMQ 地址
+          
+          # 资源限制
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 8Gi
+            requests:
+              cpu: 2000m
+              memory: 4Gi
+          
+          # 健康检查
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8888
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8888
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+
+      
+      restartPolicy: Always
